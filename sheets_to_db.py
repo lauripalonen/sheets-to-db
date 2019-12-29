@@ -1,5 +1,6 @@
 import click
 import xlrd
+from DAO import Dao
 import sqlite3
 from sqlite3 import Error
 import os
@@ -42,93 +43,60 @@ def validate_db_type(db_filename):
 def get_spreadsheet(filename):
     workbook = xlrd.open_workbook(filename)
     worksheet = workbook.sheet_by_index(0)
+
     return worksheet
-    num_cols = worksheet.ncols
-    num_rows = worksheet.nrows
-
-    if num_cols == 0 or num_rows == 0:
-        print("Your spreadsheet is empty")
-
-
-    print("Your spreadsheet contains {} columns and {} rows".format(num_cols, num_rows))
-
-    user_input = raw_input("Use first row as headers for database columns? [y/n] ")
-
-    if user_input == 'y':
-        print("You selected yes.")
-    elif user_input == 'n':
-        print("You selected no.")
-    else:
-        print("Invalid input.")
 
 def convert_to_db(worksheet, db_filename):
+
+    click.echo("Creating database file...")
+    new_dao = Dao(db_filename)
+    conn = new_dao.create_connection()
+    
+    if conn is not None:
+        table_name = raw_input("Give name for the database table: ")
+        columns = get_headers(worksheet)
+        values = get_values(worksheet)
+
+        new_dao.create_table(table_name)
+        
+        for column in columns:
+            new_dao.create_column(table_name, column)
+
+        column_titles = ', '.join(columns)
+
+        new_dao.insert_values(table_name, column_titles, values)
+
+    conn.close()
+
+def get_headers(worksheet):
     num_cols = worksheet.ncols
     num_rows = worksheet.nrows
 
-    print("Your spreadsheet contains {} columns and {} rows".format(num_cols, num_rows))
-
+    click.echo("Your spreadsheet contains {} columns and {} rows".format(num_cols, num_rows))
     user_input = raw_input("Use first row as headers for database columns? [y/n] ")
 
     headers = []
 
     if user_input == 'y':
+        click.echo("using first row as headers for columns")
+
         for col_idx in range(0, num_cols):
-            title = worksheet.cell(0, col_idx).value
-            headers.append(title)
-
-        print("using first row as headers for columns")
-
+            header = worksheet.cell(0, col_idx).value
+            headers.append(header)
+    
     elif user_input == 'n':
-        print("Rename columns for database: ")
+        click.echo("Rename column headers for database: ")
         for col_idx in range(0, num_cols):
-            title = worksheet.cell(0, col_idx).value
-            user_input = raw_input("Column {} ('{}'): ".format(col_idx, title))
-            headers.append(user_input)
+            header_old = worksheet.cell(0, col_idx).value
+            header_new = raw_input("Column {} ('{}'): ".format(col_idx + 1, header_old))
+            headers.append(header_new)
 
-    print("Creating database file...")
-    conn = create_connection(db_filename)
-    
-    if conn is not None:
-        create_table(conn, worksheet, headers)
+    return headers
 
-def create_connection(db_filename):
-    conn = None
-    try:
-        conn = sqlite3.connect("./{}".format(db_filename))
-        print("Database succesfully initiated")
-    except Error as e:
-        print(e)
-    
-    return conn
 
-def create_table(conn, worksheet, headers):
-    table_name = raw_input("Give name for the database table: ")
-    
-    sql_create_table_stmt = "CREATE TABLE IF NOT EXISTS {} (id integer PRIMARY KEY AUTOINCREMENT);".format(table_name)
 
-    try:
-        c = conn.cursor()
-        c.execute(sql_create_table_stmt)
-        print("Table succesfully initiated")
-
-    except Error as e:
-        print(e)
-
-    for header in headers:        
-        sql_add_column_stmt = " ALTER TABLE {} ADD {} VARCHAR;".format(table_name, header)
-        
-        try:
-            c = conn.cursor()
-            c.execute(sql_add_column_stmt)
-        except Error as e:
-            print(e)
-    
-    print("columns created")
-
-    populate_table(conn, worksheet, headers, table_name)
-
-def populate_table(conn, worksheet, headers, table_name):
-    sql_values = ""
+def get_values(worksheet):
+    values = ""
 
     for row in range (1, worksheet.nrows):
         row_values = "("
@@ -137,27 +105,11 @@ def populate_table(conn, worksheet, headers, table_name):
             row_values += "'{}', ".format((worksheet.cell(row, col).value).encode('utf-8'))
 
         row_values = "{})".format(row_values[:-2])
-        sql_values += "{}, ".format(row_values)
+        values += "{}, ".format(row_values)
 
-    sql_values = sql_values[:-2]
+    values = values[:-2]
 
-    header_values = ', '.join(headers)
-
-    print("HEADER VALUES: {}".format(header_values))
-
-    sql_insert_rows_stmt = "INSERT INTO {} ({}) VALUES {};".format(table_name, header_values, sql_values)
-
-    try:
-        c = conn.cursor()
-        c.execute(sql_insert_rows_stmt)
-        conn.commit()
-        print("Table succesfully populated.")
-    except Error as e:
-        print(e)
-    finally:
-        if (conn):
-            conn.close()
-            print("The SQLite connection closed")
+    return values
 
 if __name__ == "__main__":
     main()
