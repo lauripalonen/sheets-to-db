@@ -13,6 +13,7 @@ def main(filename, db_filename):
         click.echo("Converting \"{}\" into a database \"{}\"".format(filename, db_filename))
         worksheet = get_spreadsheet(filename)
         convert_to_db(worksheet, db_filename)
+        click.echo("Database '{}' created.".format(db_filename))
     else:
         click.echo("Process aborted.")
 
@@ -54,6 +55,8 @@ def convert_to_db(worksheet, db_filename):
     
     if conn is not None:
         table_name = raw_input("Give name for the database table: ")
+        click.echo()
+
         columns = get_headers(worksheet)
         values = get_values(worksheet)
 
@@ -74,11 +77,12 @@ def get_headers(worksheet):
 
     click.echo("Your spreadsheet contains {} columns and {} rows".format(num_cols, num_rows))
     user_input = raw_input("Use first row as headers for database columns? [y/n] ")
+    click.echo()
 
     headers = []
 
     if user_input == 'y':
-        click.echo("using first row as headers for columns")
+        click.echo("Using first row as headers for columns.")
 
         for col_idx in range(0, num_cols):
             header = worksheet.cell(0, col_idx).value
