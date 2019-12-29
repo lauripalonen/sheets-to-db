@@ -43,9 +43,7 @@ class Dao:
 
     def insert_values(self, table, columns, values):
         stmt = "INSERT INTO {} ({}) VALUES {};".format(table, columns, values)
-
-        print("STATEMENT: {}".format(stmt))
-
+        
         conn = self.create_connection()
 
         try:
