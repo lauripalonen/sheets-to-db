@@ -139,7 +139,7 @@ tags
 .vim
 
 ### VisualStudioCode ###
-.vscode/*
+.vscode
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
@@ -147,4 +147,4 @@ tags
 
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
-.history
+.history*
