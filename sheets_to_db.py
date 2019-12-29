@@ -30,7 +30,7 @@ def validate_spreadsheet_type(filename):
 
 def validate_db_type(db_filename):
     if os.path.exists(db_filename):
-        click.echo("File already exists in the directory. Please choose unique name for database.")
+        click.echo("File already exists in the directory. Please choose a unique name for database.")
         return False
 
     if not db_filename.endswith('.db'):
@@ -102,9 +102,9 @@ def create_connection(db_filename):
     return conn
 
 def create_table(conn, worksheet, headers):
-    user_input = raw_input("Give name for the database table: ")
+    table_name = raw_input("Give name for the database table: ")
     
-    sql_create_table_stmt = " CREATE TABLE IF NOT EXISTS {} (id integer PRIMARY KEY);".format(user_input)
+    sql_create_table_stmt = "CREATE TABLE IF NOT EXISTS {} (id integer PRIMARY KEY AUTOINCREMENT);".format(table_name)
 
     try:
         c = conn.cursor()
@@ -115,7 +115,7 @@ def create_table(conn, worksheet, headers):
         print(e)
 
     for header in headers:        
-        sql_add_column_stmt = " ALTER TABLE {} ADD {} VARCHAR;".format(user_input, header)
+        sql_add_column_stmt = " ALTER TABLE {} ADD {} VARCHAR;".format(table_name, header)
         
         try:
             c = conn.cursor()
@@ -124,6 +124,40 @@ def create_table(conn, worksheet, headers):
             print(e)
     
     print("columns created")
+
+    populate_table(conn, worksheet, headers, table_name)
+
+def populate_table(conn, worksheet, headers, table_name):
+    sql_values = ""
+
+    for row in range (1, worksheet.nrows):
+        row_values = "("
+
+        for col in range (0, worksheet.ncols):
+            row_values += "'{}', ".format((worksheet.cell(row, col).value).encode('utf-8'))
+
+        row_values = "{})".format(row_values[:-2])
+        sql_values += "{}, ".format(row_values)
+
+    sql_values = sql_values[:-2]
+
+    header_values = ', '.join(headers)
+
+    print("HEADER VALUES: {}".format(header_values))
+
+    sql_insert_rows_stmt = "INSERT INTO {} ({}) VALUES {};".format(table_name, header_values, sql_values)
+
+    try:
+        c = conn.cursor()
+        c.execute(sql_insert_rows_stmt)
+        conn.commit()
+        print("Table succesfully populated.")
+    except Error as e:
+        print(e)
+    finally:
+        if (conn):
+            conn.close()
+            print("The SQLite connection closed")
 
 if __name__ == "__main__":
     main()
